@@ -1,16 +1,14 @@
-const Telegraf = require("telegraf")
+require("dotenv").config()
+const { Telegraf } = require("telegraf")
 const axios = require("axios")
-const TMDB = process.env.TMDB
-const TELEGRAM = process.env.TG
-const bot = new Telegraf(TELEGRAM)
+const TMDB_TOKEN = process.env.TMDB
+const TG_TOKEN = process.env.TG
+const bot = new Telegraf(TG_TOKEN)
 
-function type(type) {
-    return type == "tv" ? "tv" : "movie"
-}
-
-bot.on('inline_query', async ({ inlineQuery, answerInlineQuery }) => {
-    if (inlineQuery.query !== '') {
-        axios.get(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB}&language=en-US&query=${inlineQuery.query}&page=1&include_adult=false`)
+bot.on('inline_query', async (ctx) => {
+    const query = ctx.inlineQuery.query
+    if (query !== '') {
+        axios.get(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_TOKEN}&language=en-US&query=${query}&page=1`)
             .then((res) => {
                 let titles = res.data.results
                     .filter(({ poster_path }) => poster_path)
@@ -21,13 +19,16 @@ bot.on('inline_query', async ({ inlineQuery, answerInlineQuery }) => {
                         description: overview,
                         thumb_url: `https://image.tmdb.org/t/p/original${poster_path}`,
                         input_message_content: {
-                            message_text: `https://www.themoviedb.org/${type(media_type)}/${id}`
+                            message_text: `https://www.themoviedb.org/${(media_type == "tv") ? "tv" : "movie"}/${id}`
                         }
                     }))
-                return answerInlineQuery(titles)
+                return ctx.answerInlineQuery(titles)
             })
             .catch(err => console.log(err))
     }
 })
 
 bot.launch().catch(err => console.error(err))
+
+process.once('SIGINT', () => bot.stop('SIGINT'))
+process.once('SIGTERM', () => bot.stop('SIGTERM'))
